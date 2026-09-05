@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ID Scanner</title>
+
+    <!-- QR Scanner -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #reader {
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            display: none;
+        }
+
+        .result h2 {
+            margin-top: 0;
+        }
+
+        .row {
+            margin: 10px 0;
+        }
+
+        .label {
+            font-weight: bold;
+        }
+
+        .valid {
+            color: green;
+            font-weight: bold;
+            font-size: 20px;
+        }
+
+        .invalid {
+            color: red;
+            font-weight: bold;
+            font-size: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>BIGGIETALK ID SCANNER</h1>
+
+    <div id="reader"></div>
+
+    <div id="result" class="result">
+
+        <h2 id="resultStatus"></h2>
+
+        <div class="row">
+            <span class="label">Employee ID:</span>
+            <span id="employeeId"></span>
+        </div>
+
+        <div class="row">
+            <span class="label">Name:</span>
+            <span id="employeeName"></span>
+        </div>
+
+        <div class="row">
+            <span class="label">Platform:</span>
+            <span id="employeePlatform"></span>
+        </div>
+
+        <div class="row">
+            <span class="label">Department:</span>
+            <span id="employeeDepartment"></span>
+        </div>
+
+        <div class="row">
+            <span class="label">Status:</span>
+            <span id="employeeStatus"></span>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+    // ==========================================
+    // SUPABASE CONNECTION
+    // ==========================================
+
+    const SUPABASE_URL = "https://dpywkqmnhoyfqyhddiyf.supabase.co/rest/v1/";
+
+    const SUPABASE_KEY = "sb_secret_GJCuiETwtrj4M7ZR33K4KA_WW3eCrDy";
+
+    const supabaseClient = supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+
+    // ==========================================
+    // SCAN QR CODE
+    // ==========================================
+
+    async function onScanSuccess(decodedText) {
+
+        console.log("Scanned:", decodedText);
+
+        // Stop scanner temporarily
+        html5QrcodeScanner.clear();
+
+        // Search employee
+        const { data, error } = await supabaseClient
+            .from("employees")
+            .select("*")
+            .eq("employee_id", decodedText)
+            .single();
+
+
+        const result = document.getElementById("result");
+        const status = document.getElementById("resultStatus");
+
+        result.style.display = "block";
+
+
+        // ==========================================
+        // INVALID ID
+        // ==========================================
+
+        if (error || !data) {
+
+            status.textContent = "❌ ID NOT FOUND";
+            status.className = "invalid";
+
+            document.getElementById("employeeId").textContent = decodedText;
+            document.getElementById("employeeName").textContent = "-";
+            document.getElementById("employeePlatform").textContent = "-";
+            document.getElementById("employeeDepartment").textContent = "-";
+            document.getElementById("employeeStatus").textContent = "-";
+
+            setTimeout(startScanner, 3000);
+
+            return;
+        }
+
+
+        // ==========================================
+        // VALID ID
+        // ==========================================
+
+        status.textContent = "✅ VALID ID";
+        status.className = "valid";
+
+        document.getElementById("employeeId").textContent =
+            data.employee_id;
+
+        document.getElementById("employeeName").textContent =
+            data.name;
+
+        document.getElementById("employeePlatform").textContent =
+            data.platform;
+
+        document.getElementById("employeeDepartment").textContent =
+            data.department;
+
+        document.getElementById("employeeStatus").textContent =
+            data.status;
+
+
+        // Restart scanner after 3 seconds
+        setTimeout(startScanner, 3000);
+    }
+
+
+    // ==========================================
+    // START SCANNER
+    // ==========================================
+
+    let html5QrcodeScanner;
+
+    function startScanner() {
+
+        document.getElementById("result").style.display = "none";
+
+        html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader",
+            {
+                fps: 10,
+                qrbox: {
+                    width: 250,
+                    height: 250
+                }
+            },
+            false
+        );
+
+        html5QrcodeScanner.render(
+            onScanSuccess,
+            function(errorMessage) {
+                // Ignore scanning errors
+            }
+        );
+    }
+
+
+    startScanner();
+
+</script>
+
+</body>
+</html>
